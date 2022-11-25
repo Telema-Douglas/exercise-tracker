@@ -33,11 +33,85 @@ app.get('/api/users', async function(req,res){
 })
 
 app.post('/api/users/:_id/exercises', async function(req,res){
-    let user_id = req.params._id;
-    let user = await User.findById(user_id);
-    console.log(user)
+    let date = null;
+    if(!req.body.date){
+      date = new Date();
+    }else{
+      date = new Date(req.body.date);
+    }
+
+    let userId = req.params._id;
+    let user = await User.findById(userId);
+   
+    let exercise = await Exercise.create({
+      userId,
+      username:user.username,
+      date,
+      duration:req.body.duration,
+      description:req.body.description
+    });
+
+    let response = {
+      username: exercise.username,
+      description: exercise.description,
+      duration: exercise.duration,
+      date: exercise.date.toDateString(),
+      _id: exercise.userId
+    }
+  
+    res.json(response);
+    
 });
+
+app.get('/api/users/:_id/logs', async function(req,res){
+    let userId = req.params._id;
+    
+    let from = req.query.from || null;
+    let to = req.query.to || null;
+    let limit = req.query.limit || null;
+
+    let user = await User.findById(userId);
+    let exercises;
+
+    let filter = {
+      userId:user._id.toString()
+    }
+
+    if(from && to){
+      filter.date = {
+        $gte : new Date(from),
+        $lte: new Date(to)
+      }
+    }
+  
+  if(!limit){
+     exercises = await Exercise.find(filter);
+  }else{
+    exercises = await Exercise.find({
+      userId: user._id
+    }).limit(Number(limit));
+  }
+  let count = exercises.length;
+  let log = [];
+  for(let i = 0; i<exercises.length; i++){
+    log.push({
+      description: exercises[i].description,
+      duration: exercises[i].duration, 
+      date: exercises[i].date.toDateString()
+    })
+  }
+  let response = {
+    username: user.username,
+    count,
+    _id: user._id,
+    log 
+  }
+  res.json(response);
+});
+
 
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)
-})
+});
+
+
